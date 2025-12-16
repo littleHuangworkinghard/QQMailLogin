@@ -1,0 +1,50 @@
+# 配置文件（不要提交包含敏感信息的文件）
+src/main/resources/config/config.properties
+src/main/resources/config/local.properties
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ================ 测试报告和输出 ================
+test-reports/
+screenshots/
+.allure/
+allure-results/
+allure-report/
+ExtentReport-*.html
+ExtentReport-*.png
+*.log
+*.tmp
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store

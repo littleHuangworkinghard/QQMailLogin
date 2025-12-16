@@ -1,0 +1,7 @@
+test_case,username,password,expected_result
+正常登录,test1@qq.com,valid_auth_code_1,SUCCESS
+错误密码,test2@qq.com,wrong_password,FAILURE
+空用户名,,valid_auth_code_2,FAILURE
+空密码,test3@qq.com,,FAILURE
+特殊字符,test!@#@qq.com,valid_auth_code_3,FAILURE
+超长用户名,very_long_username_that_is_too_long@qq.com,valid_auth_code_4,FAILURE

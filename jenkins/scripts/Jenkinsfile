@@ -1,0 +1,172 @@
+// jenkins/Jenkinsfile (优化版)
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_NAME = 'QQMailLogin'
+        REPORTS_DIR = 'target'
+    }
+
+    // 添加 tools 部分（从第二个借鉴）
+    tools {
+        maven 'Maven3'  // Jenkins 中配置的 Maven
+        jdk 'JDK11'     // Jenkins 中配置的 JDK
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')  // 延长超时
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
+    stages {
+        // 阶段1：代码检出
+        stage('Checkout') {
+            steps {
+                echo '🔽 检出代码...'
+                checkout scm
+            }
+        }
+
+        // 阶段2：环境检查与安装
+        stage('Environment Setup') {
+            steps {
+                echo '🔧 设置测试环境...'
+
+                script {
+                    // 只在需要时安装 Chrome
+                    if (isUnix()) {
+                        sh '''
+                            # 检查是否已安装 Chrome
+                            if ! command -v google-chrome &> /dev/null; then
+                                echo "安装 Chrome..."
+                                wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+                                echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+                                sudo apt-get update
+                                sudo apt-get install -y google-chrome-stable
+                            fi
+
+                            # 安装 ChromeDriver
+                            if ! command -v chromedriver &> /dev/null; then
+                                echo "安装 ChromeDriver..."
+                                CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+                                CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
+                                wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
+                                sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
+                                sudo chmod +x /usr/local/bin/chromedriver
+                            fi
+
+                            # 验证
+                            google-chrome --version
+                            chromedriver --version
+                        '''
+                    }
+                }
+            }
+        }
+
+        // 阶段3：编译项目
+        stage('Build') {
+            steps {
+                echo '🏗️ 编译项目...'
+                sh 'mvn clean compile -DskipTests'
+            }
+        }
+
+        // 阶段4：运行测试（关键修改）
+        stage('Test') {
+            steps {
+                echo '🧪 运行所有测试...'
+
+                // 一次性运行所有测试，生成 Allure 结果
+                sh '''
+                    mvn test -Dallure.results.directory=target/allure-results
+                '''
+            }
+
+            post {
+                always {
+                    // 1. 保存 JUnit 结果
+                    junit 'target/surefire-reports/**/*.xml'
+
+                    // 2. 使用 Allure Jenkins 插件生成报告（关键）
+                    script {
+                        allure([
+                            includeProperties: false,
+                            jdk: '',
+                            results: [[path: 'target/allure-results']],
+                            report: 'target/allure-report',
+                            reportBuildPolicy: 'ALWAYS'
+                        ])
+                    }
+
+                    // 3. 归档其他报告
+                    archiveArtifacts artifacts: 'target/ExtentReport-*.html', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'target/screenshots/*.png', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // 阶段5：生成详细报告
+        stage('Generate Detailed Reports') {
+            steps {
+                echo '📊 生成详细报告...'
+
+                // 生成 Allure 聚合报告（如果有多个模块）
+                sh 'mvn allure:aggregate 2>/dev/null || echo "Allure聚合报告生成失败，继续..."'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "🎯 构建完成 - ${currentBuild.currentResult}"
+
+            // 发布 HTML 报告到 Jenkins
+            script {
+                // 发布 Allure 报告
+                if (fileExists('target/allure-report/index.html')) {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/allure-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Allure Test Report',
+                        reportTitles: 'Allure 测试报告'
+                    ])
+                }
+
+                // 发布 ExtentReports（如果存在）
+                def extentFiles = findFiles(glob: 'target/ExtentReport-*.html')
+                if (extentFiles) {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target',
+                        reportFiles: extentFiles[0].name,
+                        reportName: 'Extent Test Report',
+                        reportTitles: 'ExtentReports 测试报告'
+                    ])
+                }
+            }
+
+            // 清理大文件（可选）
+            sh 'rm -rf target/screenshots/* || true'
+        }
+
+        success {
+            echo '✅ 构建成功！'
+            // 邮件通知（根据需要启用）
+            // emailext(...)
+        }
+
+        failure {
+            echo '❌ 构建失败！'
+        }
+
+        unstable {
+            echo '⚠️ 构建不稳定（测试失败）！'
+        }
+    }
+}
