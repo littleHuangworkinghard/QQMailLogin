@@ -1,4 +1,3 @@
-// jenkins/Jenkinsfile (优化版)
 pipeline {
     agent any
 
@@ -7,15 +6,15 @@ pipeline {
         REPORTS_DIR = 'target'
     }
 
-    // 添加 tools 部分（从第二个借鉴）
+    // 工具配置
     tools {
         maven 'Maven3'  // Jenkins 中配置的 Maven
         jdk 'JDK21'     // Jenkins 中配置的 JDK
     }
 
     options {
-        timeout(time: 30, unit: 'MINUTES')  // 延长超时
-        buildDiscarder(logRotator(numToKeepStr: '5'))
+        timeout(time: 30, unit: 'MINUTES')  // 超时设置
+        buildDiscarder(logRotator(numToKeepStr: '5'))  // 保留最近5个构建
     }
 
     stages {
@@ -27,38 +26,19 @@ pipeline {
             }
         }
 
-        // 阶段2：环境检查与安装
+        // 阶段2：环境检查（简化版，针对Windows优化）
         stage('Environment Setup') {
             steps {
                 echo '🔧 设置测试环境...'
 
                 script {
-                    // 只在需要时安装 Chrome
+                    // 检查Java和Maven版本
                     if (isUnix()) {
-                        sh '''
-                            # 检查是否已安装 Chrome
-                            if ! command -v google-chrome &> /dev/null; then
-                                echo "安装 Chrome..."
-                                wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-                                echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-                                sudo apt-get update
-                                sudo apt-get install -y google-chrome-stable
-                            fi
-
-                            # 安装 ChromeDriver
-                            if ! command -v chromedriver &> /dev/null; then
-                                echo "安装 ChromeDriver..."
-                                CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
-                                CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
-                                wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-                                sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
-                                sudo chmod +x /usr/local/bin/chromedriver
-                            fi
-
-                            # 验证
-                            google-chrome --version
-                            chromedriver --version
-                        '''
+                        sh 'java -version'
+                        sh 'mvn -v'
+                    } else {
+                        bat 'java -version'
+                        bat 'mvn -v'
                     }
                 }
             }
@@ -68,27 +48,36 @@ pipeline {
         stage('Build') {
             steps {
                 echo '🏗️ 编译项目...'
-                sh 'mvn clean compile -DskipTests'
+                script {
+                    if (isUnix()) {
+                        sh 'mvn clean compile -DskipTests'
+                    } else {
+                        bat 'mvn clean compile -DskipTests'
+                    }
+                }
             }
         }
 
-        // 阶段4：运行测试（关键修改）
+        // 阶段4：运行测试
         stage('Test') {
             steps {
                 echo '🧪 运行所有测试...'
 
-                // 一次性运行所有测试，生成 Allure 结果
-                sh '''
-                    mvn test -Dallure.results.directory=target/allure-results
-                '''
+                script {
+                    if (isUnix()) {
+                        sh 'mvn test -Dallure.results.directory=target/allure-results'
+                    } else {
+                        bat 'mvn test -Dallure.results.directory=target/allure-results'
+                    }
+                }
             }
 
             post {
                 always {
-                    // 1. 保存 JUnit 结果
+                    // 1. 保存JUnit结果
                     junit 'target/surefire-reports/**/*.xml'
 
-                    // 2. 使用 Allure Jenkins 插件生成报告（关键）
+                    // 2. 生成Allure报告
                     script {
                         allure([
                             includeProperties: false,
@@ -111,8 +100,13 @@ pipeline {
             steps {
                 echo '📊 生成详细报告...'
 
-                // 生成 Allure 聚合报告（如果有多个模块）
-                sh 'mvn allure:aggregate 2>/dev/null || echo "Allure聚合报告生成失败，继续..."'
+                script {
+                    if (isUnix()) {
+                        sh 'mvn allure:aggregate 2>/dev/null || echo "Allure聚合报告生成失败，继续..."'
+                    } else {
+                        bat 'mvn allure:aggregate 2>nul || echo "Allure聚合报告生成失败，继续..."'
+                    }
+                }
             }
         }
     }
@@ -121,9 +115,9 @@ pipeline {
         always {
             echo "🎯 构建完成 - ${currentBuild.currentResult}"
 
-            // 发布 HTML 报告到 Jenkins
+            // 发布HTML报告到Jenkins
             script {
-                // 发布 Allure 报告
+                // 发布Allure报告
                 if (fileExists('target/allure-report/index.html')) {
                     publishHTML([
                         allowMissing: false,
@@ -136,33 +130,62 @@ pipeline {
                     ])
                 }
 
-                // 发布 ExtentReports（如果存在）
-                def extentFiles = findFiles(glob: 'target/ExtentReport-*.html')
-                if (extentFiles) {
+                // 发布ExtentReports（如果存在）- 修改后的版本
+                def extentReportFile = null
+                if (isUnix()) {
+                    def result = sh(script: 'find target -name "ExtentReport-*.html" -type f | head -1', returnStdout: true).trim()
+                    if (result) {
+                        extentReportFile = result
+                    }
+                } else {
+                    def result = bat(script: '@echo off && for /r target %%i in (ExtentReport-*.html) do echo %%i && exit /b 0', returnStdout: true).trim()
+                    if (result && !result.contains("echo off")) {
+                        extentReportFile = result
+                    }
+                }
+
+                if (extentReportFile) {
+                    def fileName = new File(extentReportFile).getName()
                     publishHTML([
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
                         reportDir: 'target',
-                        reportFiles: extentFiles[0].name,
+                        reportFiles: fileName,
                         reportName: 'Extent Test Report',
                         reportTitles: 'ExtentReports 测试报告'
                     ])
                 }
-            }
 
-            // 清理大文件（可选）
-            sh 'rm -rf target/screenshots/* || true'
+                // 清理截图文件（可选）
+                script {
+                    if (isUnix()) {
+                        sh 'rm -rf target/screenshots/* 2>/dev/null || true'
+                    } else {
+                        bat 'if exist "target\\screenshots\\*" del /q "target\\screenshots\\*" 2>nul'
+                    }
+                }
+            }
         }
 
         success {
             echo '✅ 构建成功！'
-            // 邮件通知（根据需要启用）
-            // emailext(...)
+            // 如果需要邮件通知，可以在这里添加
+            // emailext(
+            //     subject: "构建成功: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //     body: "项目构建成功，请查看报告。",
+            //     to: 'your-email@example.com'
+            // )
         }
 
         failure {
             echo '❌ 构建失败！'
+            // 失败时邮件通知
+            // emailext(
+            //     subject: "构建失败: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //     body: "项目构建失败，请检查日志。",
+            //     to: 'your-email@example.com'
+            // )
         }
 
         unstable {
