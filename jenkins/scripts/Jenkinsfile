@@ -10,7 +10,7 @@ pipeline {
     // 添加 tools 部分（从第二个借鉴）
     tools {
         maven 'Maven3'  // Jenkins 中配置的 Maven
-        jdk 'JDK11'     // Jenkins 中配置的 JDK
+        jdk 'JDK21'     // Jenkins 中配置的 JDK
     }
 
     options {
