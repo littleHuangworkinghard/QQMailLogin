@@ -88,7 +88,7 @@ pipeline {
                             echo [SUCCESS] 找到文件: config/config.properties (在target目录中)
                         ) else (
                             echo [WARNING] 未在标准位置找到文件。正在列出target目录结构...
-                            dir /s “%WORKSPACE%\target\test-classes\*.properties”
+                            dir /s "%WORKSPACE%\\target\\test-classes\\*.properties"
                         )
                         rem ===== 新增的检查命令结束 =====
                         """
