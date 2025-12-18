@@ -18,6 +18,12 @@ pipeline {
     }
 
     stages {
+         // 新增一个阶段：清理工作空间
+         stage('Clean Workspace') {
+                    steps {
+                        cleanWs() // 这就是清理工作空间的指令
+                    }
+                }
         // 阶段1：代码检出
         stage('Checkout') {
             steps {
