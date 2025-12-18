@@ -17,6 +17,7 @@ pipeline {
     options {
         timeout(time: 30, unit: 'MINUTES')  // 超时设置
         buildDiscarder(logRotator(numToKeepStr: '5'))  // 保留最近5个构建
+        skipStagesAfterUnstable: false
     }
 
     stages {
@@ -79,18 +80,7 @@ pipeline {
                         rem 关键步骤：设置临时环境变量，影响当前命令行会话中启动的所有进程
                         set MAVEN_OPTS=-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
                         set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
-                        mvn clean test -Dallure.results.directory=target/allure-results || echo "Maven 命令执行完成（可能失败），继续执行检查..."
-                        rem ===== 新增的检查命令开始 =====
-                        echo [DEBUG] 检查构建后资源文件是否存在...
-                        echo [DEBUG] 工作空间绝对路径: %WORKSPACE%
-                        dir /s "%WORKSPACE%\\target\\test-classes\\config.properties" 2>nul
-                        if %errorlevel% equ 0 (
-                            echo [SUCCESS] 找到文件: config/config.properties (在target目录中)
-                        ) else (
-                            echo [WARNING] 未在标准位置找到文件。正在列出target目录结构...
-                            dir /s "%WORKSPACE%\\target\\test-classes\\*.properties"
-                        )
-                        rem ===== 新增的检查命令结束 =====
+                        mvn clean test -Dallure.results.directory=target/allure-results
                         """
                 }
             }
@@ -118,6 +108,39 @@ pipeline {
             }
         }
 
+        stage('Diagnose Resources') {
+            steps {
+                echo '🔍 诊断资源文件状态...'
+                script {
+                    bat """
+                        chcp 65001 > nul
+                        echo [DEBUG] ==== 开始诊断配置文件 ====
+                        echo [DEBUG] 工作空间: %WORKSPACE%
+
+                        rem 检查标准Maven资源目录
+                        if exist "%WORKSPACE%\\target\\test-classes\\config\\config.properties" (
+                            echo [SUCCESS] 在标准类路径找到文件：target/test-classes/config/config.properties
+                            type "%WORKSPACE%\\target\\test-classes\\config\\config.properties"
+                        ) else (
+                            echo [WARNING] 未在标准类路径找到文件。
+                        )
+
+                        rem 检查源码目录（作为对照）
+                        if exist "%WORKSPACE%\\src\\test\\resources\\config\\config.properties" (
+                            echo [INFO] 在源码目录找到文件：src/test/resources/config/config.properties
+                        ) else (
+                            echo [WARNING] 在源码目录也未找到文件。
+                        )
+
+                        rem 列出target目录下所有properties文件（用于调试）
+                        echo [DEBUG] --- 列出所有编译后的properties文件 ---
+                        dir /s /b "%WORKSPACE%\\target\\test-classes\\*.properties" 2>nul
+
+                        echo [DEBUG] ==== 诊断结束 ====
+                        """
+                }
+            }
+        }
         // 阶段5：生成详细报告
         stage('Generate Detailed Reports') {
             steps {
