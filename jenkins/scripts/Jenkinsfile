@@ -83,7 +83,7 @@ pipeline {
                         rem ===== 新增的检查命令开始 =====
                         echo [DEBUG] 检查构建后资源文件是否存在...
                         echo [DEBUG] 工作空间绝对路径: %WORKSPACE%
-                        dir /s “%WORKSPACE%\target\test-classes\config.properties” 2>nul
+                        dir /s "%WORKSPACE%\\target\\test-classes\\config.properties" 2>nul
                         if %errorlevel% equ 0 (
                             echo [SUCCESS] 找到文件: config/config.properties (在target目录中)
                         ) else (
