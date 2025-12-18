@@ -125,7 +125,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <argLine>-Dfile.encoding=UTF-8 @{argLine}</argLine>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
                     <systemPropertyVariables>
                         <!-- 确保这里指向 target 目录 -->
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
