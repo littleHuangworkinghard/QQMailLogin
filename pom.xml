@@ -116,7 +116,7 @@
                     <target>21</target>
                     <!-- 添加此参数以显式传递给javac进程 -->
                     <compilerArgs>
-                        <arg>-J-Dfile.encoding=UTF-8</arg>
+                        <arg>-proc:none</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
