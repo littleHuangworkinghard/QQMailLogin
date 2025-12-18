@@ -76,7 +76,7 @@ pipeline {
                         echo [INFO] 工作空间：%WORKSPACE%
                         echo [INFO] 开始执行QQ邮箱登录测试...
                         cd /d "%WORKSPACE%"
-                        mvn clean test -Dtest=DiagnosticTest -Dfile.encoding=UTF-8
+                        mvn clean test -Dallure.results.directory=target/allure-results
                         """
                 }
             }

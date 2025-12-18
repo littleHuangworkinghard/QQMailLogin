@@ -108,13 +108,29 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version> <!-- 可与您当前版本一致 -->
+                <configuration>
+                    <encoding>UTF-8</encoding> <!-- 核心：强制编译器使用UTF-8 -->
+                    <source>21</source>
+                    <target>21</target>
+                    <!-- 添加此参数以显式传递给javac进程 -->
+                    <compilerArgs>
+                        <arg>-J-Dfile.encoding=UTF-8</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
                     <systemPropertyVariables>
                         <!-- 确保这里指向 target 目录 -->
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                         <headless>${headless}</headless>
+                        <console.encoding>UTF-8</console.encoding>
                     </systemPropertyVariables>
                     <properties>
                         <configurationParameters>
