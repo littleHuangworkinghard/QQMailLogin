@@ -76,7 +76,10 @@ pipeline {
                         echo [INFO] 工作空间：%WORKSPACE%
                         echo [INFO] 开始执行QQ邮箱登录测试...
                         cd /d "%WORKSPACE%"
-                        mvn clean test -Dallure.results.directory=target/allure-results
+                        rem 关键步骤：设置临时环境变量，影响当前命令行会话中启动的所有进程
+                        set MAVEN_OPTS=-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
+                        set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
+                        mvn clean test -Dallure.results.directory=target/allure-results -DargLine="-Dfile.encoding=UTF-8"
                         """
                 }
             }
