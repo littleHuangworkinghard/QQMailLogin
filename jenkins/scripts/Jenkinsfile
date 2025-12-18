@@ -4,6 +4,8 @@ pipeline {
     environment {
         PROJECT_NAME = 'QQMailLogin'
         REPORTS_DIR = 'target'
+        LANG = 'zh_CN.UTF-8'
+        JAVA_TOOL_OPTIONS = '-Dfile.encoding=UTF-8'
     }
 
     // 工具配置
@@ -68,13 +70,14 @@ pipeline {
         stage('Test') {
             steps {
                 echo '🧪 运行所有测试...'
-
                 script {
-                    if (isUnix()) {
-                        sh 'mvn test -Dallure.results.directory=target/allure-results'
-                    } else {
-                        bat 'mvn test -Dallure.results.directory=target/allure-results'
-                    }
+                    bat """
+                        chcp 65001 > nul
+                        echo [INFO] 工作空间：%WORKSPACE%
+                        echo [INFO] 开始执行QQ邮箱登录测试...
+                        cd /d "%WORKSPACE%"
+                        mvn test -Dallure.results.directory=target/allure-results
+                        """
                 }
             }
 
