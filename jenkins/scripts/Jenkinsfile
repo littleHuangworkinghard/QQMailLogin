@@ -80,6 +80,17 @@ pipeline {
                         set MAVEN_OPTS=-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
                         set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
                         mvn clean test -Dallure.results.directory=target/allure-results
+                        rem ===== 新增的检查命令开始 =====
+                        echo [DEBUG] 检查构建后资源文件是否存在...
+                        echo [DEBUG] 工作空间绝对路径: %WORKSPACE%
+                        dir /s “%WORKSPACE%\target\test-classes\config.properties” 2>nul
+                        if %errorlevel% equ 0 (
+                            echo [SUCCESS] 找到文件: config/config.properties (在target目录中)
+                        ) else (
+                            echo [WARNING] 未在标准位置找到文件。正在列出target目录结构...
+                            dir /s “%WORKSPACE%\target\test-classes\*.properties”
+                        )
+                        rem ===== 新增的检查命令结束 =====
                         """
                 }
             }
