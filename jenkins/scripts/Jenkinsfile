@@ -17,7 +17,6 @@ pipeline {
     options {
         timeout(time: 30, unit: 'MINUTES')  // 超时设置
         buildDiscarder(logRotator(numToKeepStr: '5'))  // 保留最近5个构建
-        skipStagesAfterUnstable: false
     }
 
     stages {
@@ -105,6 +104,28 @@ pipeline {
                     archiveArtifacts artifacts: 'target/ExtentReport-*.html', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'target/screenshots/*.png', allowEmptyArchive: true
                 }
+                // 条件2: 仅在阶段状态为“失败”时执行（用于诊断）
+                        failure {
+                            echo '❌ 测试阶段失败，开始诊断配置文件问题...'
+                            script {
+                                bat """
+                                    chcp 65001 > nul
+                                    echo [DEBUG] ==== 紧急诊断：配置文件是否被正确复制？ ====
+                                    echo [DEBUG] 工作空间: %WORKSPACE%
+
+                                    if exist "%WORKSPACE%\\target\\test-classes\\config\\config.properties" (
+                                        echo [SUCCESS] 关键文件存在: target/test-classes/config/config.properties
+                                        echo [INFO] 结论：Maven已复制文件。问题出在代码加载路径或文件内容。
+                                    ) else (
+                                        echo [FAILURE] 关键文件缺失。
+                                        echo [INFO] 结论：Maven未复制文件。请检查文件是否在 src/test/resources/config/ 下。
+                                    )
+
+                                    echo [DEBUG] --- 所有编译后的属性文件列表 ---
+                                    dir /s /b "%WORKSPACE%\\target\\test-classes\\*.properties" 2>nul || echo [DEBUG] (未找到)
+                                    """
+                            }
+                        }
             }
         }
 
