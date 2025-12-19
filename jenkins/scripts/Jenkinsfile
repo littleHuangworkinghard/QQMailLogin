@@ -6,6 +6,7 @@ pipeline {
         REPORTS_DIR = 'target'
         LANG = 'zh_CN.UTF-8'
         JAVA_TOOL_OPTIONS = '-Dfile.encoding=UTF-8'
+        CONFIG_FILE = 'config-ci.properties'
     }
 
     // 工具配置
@@ -70,6 +71,11 @@ pipeline {
         stage('Test') {
             steps {
                 echo '🧪 运行所有测试...'
+                // 使用 withCredentials 安全地注入敏感信息
+                        withCredentials([
+                            string(credentialsId: 'qq-mail-address', variable: 'QQ_MAIL'),
+                            string(credentialsId: 'qq-mail-auth-code', variable: 'QQ_AUTH_CODE')
+                        ]) {
                 script {
                     bat """
                         chcp 65001 > nul
@@ -79,8 +85,12 @@ pipeline {
                         rem 关键步骤：设置临时环境变量，影响当前命令行会话中启动的所有进程
                         set MAVEN_OPTS=-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
                         set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
+                        rem *** 核心：将注入的凭据作为系统属性传递给Maven/Java ***
+                        echo [INFO] 正在注入测试凭据（日志自动屏蔽）...
+                        set MAVEN_OPTS=%MAVEN_OPTS% -Dqq.mail=%QQ_MAIL% -Dqq.auth.code=%QQ_AUTH_CODE%
                         mvn clean test -Dallure.results.directory=target/allure-results
                         """
+                }
                 }
             }
 

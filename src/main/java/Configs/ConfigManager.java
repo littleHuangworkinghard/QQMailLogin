@@ -1,6 +1,7 @@
 package Configs;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 public class ConfigManager {
@@ -8,20 +9,49 @@ public class ConfigManager {
 
     public ConfigManager() throws IOException {
         props = new Properties();
-        // 方式1：从resources目录加载（推荐）
-        InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties");
+        String mailFromSystem = System.getProperty("qq.mail");
+        String authCodeFromSystem = System.getProperty("qq.auth.code");
 
-        // 方式2：如果方式1失败，尝试从当前目录加载
+        // 1. 无论系统属性是否存在，都先尝试加载配置文件（获取所有基础配置）
+        String configFileName = (System.getenv("CI") != null || System.getenv("JENKINS_URL") != null)
+                ? "config-ci.properties"
+                : "config.properties";
+        loadConfigFile(configFileName);
+
+        // 2. 如果系统属性提供了核心凭据，则用它们覆盖配置文件中的值（最高优先级）
+        if (mailFromSystem != null && !mailFromSystem.trim().isEmpty()) {
+            props.setProperty("qq.mail", mailFromSystem);
+            System.out.println("[INFO] 配置 ‘qq.mail’ 已从系统属性覆盖。");
+        }
+        if (authCodeFromSystem != null && !authCodeFromSystem.trim().isEmpty()) {
+            props.setProperty("qq.auth.code", authCodeFromSystem);
+            System.out.println("[INFO] 配置 ‘qq.auth.code’ 已从系统属性覆盖。");
+        }
+
+        // 3. 最终检查必要配置是否存在
+        if (props.getProperty("qq.mail") == null || props.getProperty("qq.auth.code") == null) {
+            throw new RuntimeException("配置加载失败：缺少必要的 ‘qq.mail’ 或 ‘qq.auth.code’ 配置项。");
+        }
+        System.out.println("[INFO] 配置加载完成。");
+    }
+
+    /**
+     * 加载指定文件名的配置文件
+     */
+    private void loadConfigFile(String configFileName) throws IOException {
+        InputStream input = getClass().getClassLoader().getResourceAsStream(configFileName);
         if (input == null) {
-            File configFile = new File("config.properties");
+            // 对于本地开发，可尝试从文件系统读取
+            File configFile = new File(configFileName);
             if (configFile.exists()) {
                 input = new FileInputStream(configFile);
             } else {
-                throw new FileNotFoundException("请创建 config.properties 文件");
+                throw new FileNotFoundException("未找到配置文件: " + configFileName + "。请确保文件位于类路径或当前目录。");
             }
         }
-
-        props.load(new InputStreamReader(input, "UTF-8"));
+        // 使用 StandardCharsets.UTF_8 指定编码
+        props.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+        System.out.println("[INFO] 已加载基础配置文件: " + configFileName);
     }
 
     // 获取QQ邮箱用户名
