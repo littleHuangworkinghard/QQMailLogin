@@ -73,8 +73,8 @@ pipeline {
                 echo '🧪 运行所有测试...'
                 // 使用 withCredentials 安全地注入敏感信息
                         withCredentials([
-                            string(credentialsId: 'qq-mail-address', variable: 'QQ_MAIL'),
-                            string(credentialsId: 'qq-mail-auth-code', variable: 'QQ_AUTH_CODE')
+                            string(credentialsId: 'qq.mail', variable: 'QQ_MAIL'),
+                            string(credentialsId: 'qq.auth.code', variable: 'QQ_AUTH_CODE')
                         ]) {
                 script {
                     bat """
