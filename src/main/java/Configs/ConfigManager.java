@@ -9,11 +9,11 @@ public class ConfigManager {
     public ConfigManager() throws IOException {
         props = new Properties();
         // 方式1：从resources目录加载（推荐）
-        InputStream input = getClass().getClassLoader().getResourceAsStream("config/config.properties");
+        InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties");
 
         // 方式2：如果方式1失败，尝试从当前目录加载
         if (input == null) {
-            File configFile = new File("config/config.properties");
+            File configFile = new File("config.properties");
             if (configFile.exists()) {
                 input = new FileInputStream(configFile);
             } else {
