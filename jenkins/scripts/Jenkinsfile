@@ -77,29 +77,26 @@ pipeline {
                             string(credentialsId: 'qq.auth.code', variable: 'QQ_AUTH_CODE')
                         ]) {
                 script {
-                     bat """
-                          chcp 65001 > nul
-                          echo [INFO] 工作空间：%WORKSPACE%
-                          echo [INFO] 开始执行QQ邮箱登录测试...
-                          cd /d "%WORKSPACE%"
+                    bat """
+                            chcp 65001 > nul
+                            echo [INFO] 工作空间：%WORKSPACE%
+                            echo [INFO] 开始执行QQ邮箱登录测试...
+                            cd /d "%WORKSPACE%"
 
-                          rem 设置环境变量确保使用config-ci.properties
-                          set CI=true
+                            rem 设置环境变量确保使用config-ci.properties
+                            set CI=true
 
-                          rem 设置Java编码环境变量
-                          set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dconsole.encoding=UTF-8
+                            rem 设置Java编码环境变量（解决中文乱码）
+                            set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dconsole.encoding=UTF-8
 
-                          rem 设置JAVA_OPTS确保Maven也使用UTF-8
-                          set MAVEN_OPTS=-Dfile.encoding=UTF-8
+                            rem 设置JAVA_OPTS确保Maven也使用UTF-8
+                            set MAVEN_OPTS=-Dfile.encoding=UTF-8
 
-                         rem 关键：将Jenkins凭据作为系统属性传递给Maven测试
-                         rem 这样ConfigManager就能从System.getProperty()获取到值
-                         mvn clean test ^
-                            -Dallure.results.directory=target/allure-results ^
-                            Dqq.mail=%QQ_MAIL% ^
-                            -Dqq.auth.code=%QQ_AUTH_CODE% ^
-                            -Dfile.encoding=UTF-8
-                         """
+                            rem 关键：将Jenkins凭据作为系统属性传递给Maven测试
+                            rem 注意：每个-D参数前面必须有-号
+                            echo [INFO] 执行测试命令...
+                            mvn clean test -Dallure.results.directory=target/allure-results -Dqq.mail=%QQ_MAIL% -Dqq.auth.code=%QQ_AUTH_CODE% -Dfile.encoding=UTF-8
+                            """
                 }
                 }
             }
