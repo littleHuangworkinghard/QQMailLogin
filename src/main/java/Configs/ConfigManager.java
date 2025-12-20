@@ -12,6 +12,13 @@ public class ConfigManager {
         String mailFromSystem = System.getProperty("qq.mail");
         String authCodeFromSystem = System.getProperty("qq.auth.code");
 
+        // 2. 如果系统属性没有，尝试从环境变量获取
+        if (mailFromSystem == null || mailFromSystem.trim().isEmpty()) {
+            mailFromSystem = System.getenv("QQ_MAIL");
+        }
+        if (authCodeFromSystem == null || authCodeFromSystem.trim().isEmpty()) {
+            authCodeFromSystem = System.getenv("QQ_AUTH_CODE");
+        }
         // 1. 无论系统属性是否存在，都先尝试加载配置文件（获取所有基础配置）
         String configFileName = (System.getenv("CI") != null || System.getenv("JENKINS_URL") != null)
                 ? "config-ci.properties"
